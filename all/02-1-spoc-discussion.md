@@ -20,21 +20,83 @@
 
 ## 3.1 BIOS
 -  x86中BIOS从磁盘读入的第一个扇区是是什么内容？为什么没有直接读入操作系统内核映像？
-- 比较UEFI和BIOS的区别。
-- 理解rcore中的Berkeley BootLoader (BBL)的功能。
+
+**主引导扇区MBR**
+
+**因为操作系统内核映像不只有一个扇区，无法决定从哪个开始读，没有建立文件系统，只能固定读一个扇区**
+
+-  比较UEFI和BIOS的区别。
+
+**UEFI为统一可扩展固件接口，是BIOS的替代方案。UEFI安全性更好，可以保护系统，配置更加灵活，引导所支持的容量更大。**
+
+-  理解rcore中的Berkeley BootLoader (BBL)的功能。
+
+**BBL将整个操作系统通过payload.S进行包装并装载到内存中。**
 
 ## 3.2 系统启动流程
 
 - x86中分区引导扇区的结束标志是什么？
+
+**0x66AA**
+
 - x86中在UEFI中的可信启动有什么作用？
+
+**确定启动盘的安全性**
+
 - RV中BBL的启动过程大致包括哪些内容？
+
+**BBL将整个操作系统通过payload.S进行包装并装载到内存中。**
 
 ## 3.3 中断、异常和系统调用比较
 - 什么是中断、异常和系统调用？
--  中断、异常和系统调用的处理流程有什么异同？
+
+**中断 外部设备引起的响应**
+
+**异常 内部指令执行异常引起的响应**
+
+**系统调用 系用指令引起的响应**
+
+- 中断、异常和系统调用的处理流程有什么异同？
+
+**同： 都进入内核态开始处理**
+
+**异： * 原因不同**
+
+​	*** 响应方式不同 中断为异步，异常为同步，系统调用为同步**
+
 - 以ucore/rcore lab8的answer为例，ucore的系统调用有哪些？大致的功能分类有哪些？
 
+```
+static int (*syscalls[])(uint32_t arg[]) = {
+    [SYS_exit]              sys_exit,
+    [SYS_fork]              sys_fork,
+    [SYS_wait]              sys_wait,
+    [SYS_exec]              sys_exec,
+    [SYS_yield]             sys_yield,
+    [SYS_kill]              sys_kill,
+    [SYS_getpid]            sys_getpid,
+    [SYS_putc]              sys_putc,
+    [SYS_pgdir]             sys_pgdir,
+    [SYS_gettime]           sys_gettime,
+    [SYS_lab6_set_priority] sys_lab6_set_priority,
+    [SYS_sleep]             sys_sleep,
+    [SYS_open]              sys_open,
+    [SYS_close]             sys_close,
+    [SYS_read]              sys_read,
+    [SYS_write]             sys_write,
+    [SYS_seek]              sys_seek,
+    [SYS_fstat]             sys_fstat,
+    [SYS_fsync]             sys_fsync,
+    [SYS_getcwd]            sys_getcwd,
+    [SYS_getdirentry]       sys_getdirentry,
+    [SYS_dup]               sys_dup,
+};
+```
+
+**进程管理类(exit, wait, fork, exec, kill)，文件操作类(write, read, close, open)，系统信息类(getcwd getdirentry)，输出类(putc)**
+
 ## 3.4 linux系统调用分析
+
 - 通过分析[lab1_ex0](https://github.com/chyyuu/ucore_lab/blob/master/related_info/lab1/lab1-ex0.md)了解Linux应用的系统调用编写和含义。(仅实践，不用回答)
 - 通过调试[lab1_ex1](https://github.com/chyyuu/ucore_lab/blob/master/related_info/lab1/lab1-ex1.md)了解Linux应用的系统调用执行过程。(仅实践，不用回答)
 
@@ -44,12 +106,21 @@
 - 以ucore/rcore lab8的answer为例，分析ucore 应用的系统调用编写和含义。
 - 以ucore/rcore lab8的answer为例，尝试修改并运行ucore OS kernel代码，使其具有类似Linux应用工具`strace`的功能，即能够显示出应用程序发出的系统调用，从而可以分析ucore应用的系统调用执行过程。
 
- 
+
 ## 3.6 请分析函数调用和系统调用的区别
-- 系统调用与函数调用的区别是什么？
+- 系统调用与函数调用的区别是什么？	
+  - **系统调用进入内核态，权限更高**
+  - **系统调用涉及堆栈转换**
 - 通过分析x86中函数调用规范以及`int`、`iret`、`call`和`ret`的指令准确功能和调用代码，比较x86中函数调用与系统调用的堆栈操作有什么不同？
+
+  - **系统调用中，涉及到堆栈的转换，所以int、iret指令前后的栈顶指针esp不在一个堆栈上；int指令后，处理者handler栈会存储相关的信息；iret指令后，栈顶指针esp会恢复到引发系统调用的栈上。**
+  - **函数调用中，不涉及堆栈的转换，故在call和ret调用的前后，栈顶指针在同一个堆栈上；call指令后，esp会增加，并在栈新增的空间中存储参数；而ret指令后，esp会恢复到调用前的位置，并恢复栈。**
+
+
 - 通过分析RV中函数调用规范以及`ecall`、`eret`、`jal`和`jalr`的指令准确功能和调用代码，比较x86中函数调用与系统调用的堆栈操作有什么不同？
 
+
+**RV通过ABI来实现系统调用，用ecall和eret实现堆栈和特权级的切换，保存寄存器的值到堆栈**
 
 ## 课堂实践 （在课堂上根据老师安排完成，课后不用做）
 ### 练习一
